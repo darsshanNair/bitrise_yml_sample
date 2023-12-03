@@ -46,6 +46,15 @@ workflows:
         - task: test
     - deploy-to-bitrise-io:
         run_if: '{{getenv "BITRISEIO_GIT_BRANCH" | contains "develop"}}'
+        inputs:
+        - is_enable_public_page: 'true'
+        - public_install_page_slug: release
+    - slack:
+        inputs:
+        - webhook_url: 'slack_webhook_url'  # Replace with Slack webhook URL
+        - channel: '#flutter-devs'  # Replace with desired Slack channel
+        - username: 'bitrise'
+        - message: "Development build completed successfully! :tada:"
     - script:
         title: Cherry-pick to release branch
         inputs:
@@ -54,16 +63,24 @@ workflows:
             git checkout release
             git cherry-pick $BITRISE_GIT_COMMIT
             git push origin release
+    - deploy-to-google-play:
+        run_if: '{{getenv "BITRISEIO_GIT_BRANCH" | contains "release"}}'
+        inputs:
+        - keystore_url: $BITRISEIO_KEYSTORE_URL
+        - keystore_path: $BITRISEIO_KEYSTORE_PATH
+        - keystore_password: $BITRISEIO_KEYSTORE_PASSWORD
+        - keystore_alias: $BITRISEIO_KEYSTORE_ALIAS
+        - track: 'production'
+        - version_code: $BITRISE_BUILD_NUMBER
+
+    - deploy-to-itunesconnect-deliver:
+        run_if: '{{getenv "BITRISEIO_GIT_BRANCH" | contains "release"}}'
+        inputs:
+        - app_id: $BITRISE_APP_ID
+        - submit_for_review: 'true'
     - slack:
         inputs:
-        - webhook_url: 'slack_webhook_url'  # Replace with your Slack webhook URL
-        - channel: '#flutter-devs'  # Replace with your desired Slack channel
+        - webhook_url: 'slack_webhook_url'  # Replace with Slack webhook URL
+        - channel: '#flutter-devs'  # Replace with desired Slack channel
         - username: 'bitrise'
-        - message: "Build completed successfully! :tada:"
-    - deploy-to-bitrise-io:
-        run_if: '{{getenv "BITRISEIO_GIT_BRANCH" | contains "release"}}'
-    - deploy-to-bitrise-io:
-        run_if: '{{getenv "BITRISEIO_GIT_BRANCH" | contains "release"}}'
-        inputs:
-        - is_enable_public_page: 'true'
-        - public_install_page_slug: release
+        - message: "Release build deployed successfully! :tada:"
