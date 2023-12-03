@@ -1,0 +1,49 @@
+format_version: '10'
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+
+app:
+  envs:
+  - BITRISE_SCHEME: MyFlutterApp
+
+workflows:
+  version: '2'
+  primary:
+    steps:
+    - activate-ssh-key:
+        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+    - git-clone: {}
+    - script:
+        title: Do anything with Script step
+        inputs:
+        - content: |- # This script updates your Flutter version and installs dependencies.
+            set -ex
+            flutter_version="2.0.6" # Update to your Flutter version
+            flutter channel stable
+            flutter upgrade --force
+            flutter --version
+            flutter pub get
+    - cache-pull: {}
+    - flutter-installer:
+        inputs:
+        - channel: stable
+    - cache-push: {}
+    - flutter:
+        inputs:
+        - task: test
+    - deploy-to-bitrise-io:
+        run_if: '{{getenv "BITRISEIO_GIT_BRANCH" | contains "develop"}}'
+    - script:
+        title: Cherry-pick to release branch
+        inputs:
+        - content: |-
+            set -ex
+            git checkout release
+            git cherry-pick $BITRISE_GIT_COMMIT
+            git push origin release
+    - deploy-to-bitrise-io:
+        run_if: '{{getenv "BITRISEIO_GIT_BRANCH" | contains "release"}}'
+    - deploy-to-bitrise-io:
+        run_if: '{{getenv "BITRISEIO_GIT_BRANCH" | contains "release"}}'
+        inputs:
+        - is_enable_public_page: 'true'
+        - public_install_page_slug: release
