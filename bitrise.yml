@@ -3,7 +3,21 @@ default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 
 app:
   envs:
-  - BITRISE_SCHEME: MyFlutterApp
+  envs:
+  - &base_env
+    BITRISE_SCHEME: MyFlutterApp
+    BITRISE_BUILD_TYPE: Debug
+    BITRISE_FLAVOR: develop
+    FLUTTER_FLAVOR: develop
+    BUILD_DIR: build/develop
+    BITRISE_XCODE_BUILD_OPTIONS: "-UseModernBuildSystem=NO"
+    FLUTTER_TARGET: lib/main_develop.dart
+  - &release_env
+    BITRISE_BUILD_TYPE: Release
+    BITRISE_FLAVOR: release
+    FLUTTER_FLAVOR: release
+    BUILD_DIR: build/release
+    FLUTTER_TARGET: lib/main_release.dart
 
 workflows:
   version: '2'
@@ -40,6 +54,12 @@ workflows:
             git checkout release
             git cherry-pick $BITRISE_GIT_COMMIT
             git push origin release
+    - slack:
+        inputs:
+        - webhook_url: 'slack_webhook_url'  # Replace with your Slack webhook URL
+        - channel: '#flutter-devs'  # Replace with your desired Slack channel
+        - username: 'bitrise'
+        - message: "Build completed successfully! :tada:"
     - deploy-to-bitrise-io:
         run_if: '{{getenv "BITRISEIO_GIT_BRANCH" | contains "release"}}'
     - deploy-to-bitrise-io:
