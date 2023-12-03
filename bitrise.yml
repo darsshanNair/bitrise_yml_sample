@@ -3,7 +3,6 @@ default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 
 app:
   envs:
-  envs:
   - &base_env
     BITRISE_SCHEME: MyFlutterApp
     BITRISE_BUILD_TYPE: Debug
@@ -21,7 +20,7 @@ app:
 
 workflows:
   version: '2'
-  primary:
+  develop:
     steps:
     - activate-ssh-key:
         run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
@@ -45,16 +44,39 @@ workflows:
         inputs:
         - task: test
     - deploy-to-bitrise-io:
-        run_if: '{{getenv "BITRISEIO_GIT_BRANCH" | contains "develop"}}'
         inputs:
         - is_enable_public_page: 'true'
-        - public_install_page_slug: release
+        - public_install_page_slug: develop
     - slack:
         inputs:
         - webhook_url: 'slack_webhook_url'  # Replace with Slack webhook URL
         - channel: '#flutter-devs'  # Replace with desired Slack channel
         - username: 'bitrise'
         - message: "Development build completed successfully! :tada:"
+
+  release:
+    steps:
+    - activate-ssh-key:
+        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+    - git-clone: {}
+    - script:
+        title: Do anything with Script step
+        inputs:
+        - content: |- # This script updates your Flutter version and installs dependencies.
+            set -ex
+            flutter_version="2.0.6" # Update to your Flutter version
+            flutter channel stable
+            flutter upgrade --force
+            flutter --version
+            flutter pub get
+    - cache-pull: {}
+    - flutter-installer:
+        inputs:
+        - channel: stable
+    - cache-push: {}
+    - flutter:
+        inputs:
+        - task: test
     - script:
         title: Cherry-pick to release branch
         inputs:
@@ -64,7 +86,6 @@ workflows:
             git cherry-pick $BITRISE_GIT_COMMIT
             git push origin release
     - deploy-to-google-play:
-        run_if: '{{getenv "BITRISEIO_GIT_BRANCH" | contains "release"}}'
         inputs:
         - keystore_url: $BITRISEIO_KEYSTORE_URL
         - keystore_path: $BITRISEIO_KEYSTORE_PATH
@@ -72,9 +93,7 @@ workflows:
         - keystore_alias: $BITRISEIO_KEYSTORE_ALIAS
         - track: 'production'
         - version_code: $BITRISE_BUILD_NUMBER
-
     - deploy-to-itunesconnect-deliver:
-        run_if: '{{getenv "BITRISEIO_GIT_BRANCH" | contains "release"}}'
         inputs:
         - app_id: $BITRISE_APP_ID
         - submit_for_review: 'true'
